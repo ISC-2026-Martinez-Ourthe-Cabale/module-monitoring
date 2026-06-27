@@ -1,3 +1,6 @@
+## Data source de la región configurada en el provider, requerida por los widgets del dashboard de CloudWatch.
+data "aws_region" "current" {}
+
 ## Recursos de monitoreo en AWS utilizando Terraform.
 resource "aws_sns_topic" "monitoring" {
   name = var.sns_topic_name
@@ -145,6 +148,7 @@ resource "aws_cloudwatch_dashboard" "monitoring" {
         width      = 12
         height     = 6
         properties = {
+          region  = data.aws_region.current.region
           metrics = [
             [ "AWS/EC2", "CPUUtilization", "AutoScalingGroupName", var.asg_name ]
           ]
@@ -160,6 +164,7 @@ resource "aws_cloudwatch_dashboard" "monitoring" {
         width      = 12
         height     = 6
         properties = {
+          region  = data.aws_region.current.region
           metrics = [
             [ "AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn, "TargetGroup", var.target_group_arn ]
           ]
@@ -175,6 +180,7 @@ resource "aws_cloudwatch_dashboard" "monitoring" {
         width      = 12
         height     = 6
         properties = {
+          region  = data.aws_region.current.region
           metrics = [
             [ "AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.db_instance_id ]
           ]
@@ -190,6 +196,7 @@ resource "aws_cloudwatch_dashboard" "monitoring" {
         width      = 12
         height     = 6
         properties = {
+          region  = data.aws_region.current.region
           metrics = [
             [ "AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", var.db_instance_id ]
           ]
