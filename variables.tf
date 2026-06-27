@@ -44,7 +44,7 @@ variable "db_instance_id" {
 ## Variable para definir notificaciones por correo electrónico, utilizada en el módulo de monitoreo.
 variable "notificacion_email" {
   description = "Email para recibir alertas del topic SNS. Dejar vacío para no crear suscripción."
-  type        = list[string]
+  type        = list(string)
   default     = []
 }
 

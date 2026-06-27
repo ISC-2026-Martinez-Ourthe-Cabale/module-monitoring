@@ -30,8 +30,8 @@ resource "aws_cloudwatch_metric_alarm" "ec2_cpu_utilizacion" {
   dimensions = {
     AutoScalingGroupName = var.asg_name
   }
-  alarm_actions = var.notificacion_email != [] ? [aws_sns_topic.monitoring.arn] : []
-  ok_actions    = var.notificacion_email != [] ? [aws_sns_topic.monitoring.arn] : []
+  alarm_actions = var.notificacion_email != () ? [aws_sns_topic.monitoring.arn] : []
+  ok_actions    = var.notificacion_email != () ? [aws_sns_topic.monitoring.arn] : []
 
   tags = {
     Project = var.project_name
