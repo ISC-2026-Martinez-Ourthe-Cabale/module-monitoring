@@ -1,14 +1,18 @@
 ## Data source de la región configurada en el provider, requerida por los widgets del dashboard de CloudWatch.
 data "aws_region" "current" {}
 
+locals {
+  common_tags = merge(var.tags, {
+    Project = var.project_name
+    Purpose = "monitoring"
+  })
+}
+
 ## Recursos de monitoreo en AWS utilizando Terraform.
 resource "aws_sns_topic" "monitoring" {
   name = var.sns_topic_name
 
-  tags = {
-    Project = var.project_name
-    Purpose = "monitoring"
-  }
+  tags = local.common_tags
 }
 
 ## Recurso de suscripción al topic SNS para notificaciones por correo electrónico.
@@ -30,39 +34,36 @@ resource "aws_cloudwatch_metric_alarm" "ec2_cpu_utilizacion" {
   period              = var.alarma_periodo_segundos
   statistic           = "Average"
   threshold           = var.alarma_cpu_umbral
+  treat_missing_data  = "notBreaching"
   dimensions = {
     AutoScalingGroupName = var.asg_name
   }
-  alarm_actions = var.notificacion_email != [] ? [aws_sns_topic.monitoring.arn] : []
-  ok_actions    = var.notificacion_email != [] ? [aws_sns_topic.monitoring.arn] : []
+  alarm_actions = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
+  ok_actions    = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
 
-  tags = {
-    Project = var.project_name
-    Purpose = "monitoring"
-  }
+  tags = local.common_tags
 }
 
-## Recurso de alarma de CloudWatch para monitorear el estado de las instancias EC2 en el ASG.
-resource "aws_cloudwatch_metric_alarm" "ec2_status_check" {
-  alarm_name          = "${var.project_name}-ec2-status-check"
-  alarm_description   = "Alarma cuando falla un status check de sistema o instancia."
+## Recurso de alarma de CloudWatch para detectar instancias no saludables en el Target Group.
+resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_hosts" {
+  alarm_name          = "${var.project_name}-alb-unhealthy-hosts"
+  alarm_description   = "Alarma cuando el ALB detecta instancias no saludables en el Target Group."
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = var.alarma_evaluacion_periodos
-  metric_name         = "StatusCheckFailed"
-  namespace           = "AWS/EC2"
+  metric_name         = "UnHealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
   period              = var.alarma_periodo_segundos
   statistic           = "Maximum"
   threshold           = 0
+  treat_missing_data  = "notBreaching"
   dimensions = {
-    AutoScalingGroupName = var.asg_name
+    TargetGroup  = var.target_group_arn_suffix
+    LoadBalancer = var.alb_arn_suffix
   }
-  alarm_actions = var.notificacion_email != "" ? [aws_sns_topic.monitoring.arn] : []
-  ok_actions    = var.notificacion_email != "" ? [aws_sns_topic.monitoring.arn] : []
+  alarm_actions = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
+  ok_actions    = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
 
-  tags = {
-    Project = var.project_name
-    Purpose = "monitoring"
-  }
+  tags = local.common_tags
 }
 
 ## Recursos de alarmas de CloudWatch para monitorear el ALB y RDS.
@@ -76,17 +77,15 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   period              = var.alarma_periodo_segundos
   statistic           = "Sum"
   threshold           = var.alarma_alb_5xx_umbral
+  treat_missing_data  = "notBreaching"
   dimensions = {
-    TargetGroup = var.target_group_arn
-    LoadBalancer = var.alb_arn
+    TargetGroup  = var.target_group_arn_suffix
+    LoadBalancer = var.alb_arn_suffix
   }
-  alarm_actions = var.notificacion_email != "" ? [aws_sns_topic.monitoring.arn] : []
-  ok_actions    = var.notificacion_email != "" ? [aws_sns_topic.monitoring.arn] : []
+  alarm_actions = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
+  ok_actions    = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
 
-  tags = {
-    Project = var.project_name
-    Purpose = "monitoring"
-  }
+  tags = local.common_tags
 }
 
 ## Recurso de alarma de CloudWatch para monitorear el CPU de RDS.
@@ -100,16 +99,14 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_utilization" {
   period              = var.alarma_periodo_segundos
   statistic           = "Average"
   threshold           = var.alarma_rds_cpu_umbral
+  treat_missing_data  = "notBreaching"
   dimensions = {
     DBInstanceIdentifier = var.db_instance_id
   }
-  alarm_actions = var.notificacion_email != "" ? [aws_sns_topic.monitoring.arn] : []
-  ok_actions    = var.notificacion_email != "" ? [aws_sns_topic.monitoring.arn] : []
+  alarm_actions = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
+  ok_actions    = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
 
-  tags = {
-    Project = var.project_name
-    Purpose = "monitoring"
-  }
+  tags = local.common_tags
 }
 
 ## Recurso de alarma de CloudWatch para monitorear el almacenamiento libre de RDS.
@@ -123,16 +120,14 @@ resource "aws_cloudwatch_metric_alarm" "rds_free_storage" {
   period              = var.alarma_periodo_segundos
   statistic           = "Minimum"
   threshold           = var.alarma_rds_free_storage_umbral_gb * 1024 * 1024 * 1024
+  treat_missing_data  = "notBreaching"
   dimensions = {
     DBInstanceIdentifier = var.db_instance_id
   }
-  alarm_actions = var.notificacion_email != "" ? [aws_sns_topic.monitoring.arn] : []
-  ok_actions    = var.notificacion_email != "" ? [aws_sns_topic.monitoring.arn] : []
+  alarm_actions = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
+  ok_actions    = length(var.notificacion_email) > 0 ? [aws_sns_topic.monitoring.arn] : []
 
-  tags = {
-    Project = var.project_name
-    Purpose = "monitoring"
-  }
+  tags = local.common_tags
 }
 
 ## Recurso de dashboard de CloudWatch para visualizar métricas de EC2, ALB y RDS.
@@ -142,15 +137,15 @@ resource "aws_cloudwatch_dashboard" "monitoring" {
   dashboard_body = jsonencode({
     widgets = [
       {
-        type       = "metric"
-        x          = 0
-        y          = 0
-        width      = 12
-        height     = 6
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
         properties = {
-          region  = data.aws_region.current.region
+          region = data.aws_region.current.region
           metrics = [
-            [ "AWS/EC2", "CPUUtilization", "AutoScalingGroupName", var.asg_name ]
+            ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", var.asg_name]
           ]
           title  = "EC2 CPU Utilization"
           period = var.alarma_periodo_segundos
@@ -158,15 +153,15 @@ resource "aws_cloudwatch_dashboard" "monitoring" {
         }
       },
       {
-        type       = "metric"
-        x          = 12
-        y          = 0
-        width      = 12
-        height     = 6
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
         properties = {
-          region  = data.aws_region.current.region
+          region = data.aws_region.current.region
           metrics = [
-            [ "AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn, "TargetGroup", var.target_group_arn ]
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix]
           ]
           title  = "ALB Target 5XX Count"
           period = var.alarma_periodo_segundos
@@ -174,15 +169,15 @@ resource "aws_cloudwatch_dashboard" "monitoring" {
         }
       },
       {
-        type       = "metric"
-        x          = 0
-        y          = 6
-        width      = 12
-        height     = 6
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
         properties = {
-          region  = data.aws_region.current.region
+          region = data.aws_region.current.region
           metrics = [
-            [ "AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.db_instance_id ]
+            ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.db_instance_id]
           ]
           title  = "RDS CPU Utilization"
           period = var.alarma_periodo_segundos
@@ -190,19 +185,35 @@ resource "aws_cloudwatch_dashboard" "monitoring" {
         }
       },
       {
-        type       = "metric"
-        x          = 12
-        y          = 6
-        width      = 12
-        height     = 6
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
         properties = {
-          region  = data.aws_region.current.region
+          region = data.aws_region.current.region
           metrics = [
-            [ "AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", var.db_instance_id ]
+            ["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", var.db_instance_id]
           ]
           title  = "RDS Free Storage Space"
           period = var.alarma_periodo_segundos
           stat   = "Minimum"
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 12
+        width  = 12
+        height = 6
+        properties = {
+          region = data.aws_region.current.region
+          metrics = [
+            ["AWS/ApplicationELB", "UnHealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix]
+          ]
+          title  = "ALB Unhealthy Hosts"
+          period = var.alarma_periodo_segundos
+          stat   = "Maximum"
         }
       }
     ]
@@ -214,10 +225,7 @@ resource "aws_cloudwatch_log_group" "optional" {
   count = var.habilitar_log_group ? 1 : 0
 
   name              = var.log_group_name
-  retention_in_days = 30
+  retention_in_days = var.log_retention_in_days
 
-  tags = {
-    Project = var.project_name
-    Purpose = "monitoring"
-  }
+  tags = local.common_tags
 }
