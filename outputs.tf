@@ -14,7 +14,7 @@ output "dashboard_name" {
 output "alarm_names" {
   description = "Nombres de las alarmas de CloudWatch creadas."
   value = [
-    aws_cloudwatch_metric_alarm.ec2_cpu_utilization.alarm_name,
+    aws_cloudwatch_metric_alarm.ec2_cpu_utilizacion.alarm_name,
     aws_cloudwatch_metric_alarm.ec2_status_check.alarm_name,
     aws_cloudwatch_metric_alarm.alb_5xx.alarm_name,
     aws_cloudwatch_metric_alarm.rds_cpu_utilization.alarm_name,
